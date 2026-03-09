@@ -1,0 +1,1864 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAID Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       TOKENS
+    ============================================================ */
+    :root {
+      --bg-base:           #0a0e1a;
+      --bg-surface:        rgba(255,255,255,0.04);
+      --bg-surface-hover:  rgba(255,255,255,0.07);
+      --border:            rgba(255,255,255,0.08);
+      --border-accent:     rgba(79,158,255,0.4);
+
+      --color-data:        #4f9eff;
+      --color-data-dim:    rgba(79,158,255,0.25);
+      --color-mirror:      #a855f7;
+      --color-mirror-dim:  rgba(168,85,247,0.25);
+      --color-parity1:     #f59e0b;
+      --color-parity1-dim: rgba(245,158,11,0.25);
+      --color-parity2:     #ef4444;
+      --color-parity2-dim: rgba(239,68,68,0.25);
+
+      --text-primary:   #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-dim:       #475569;
+
+      --brand-gradient: linear-gradient(135deg, #4f9eff 0%, #a855f7 100%);
+      --shadow-card:    0 8px 32px rgba(0,0,0,0.45);
+
+      --radius:    12px;
+      --radius-sm: 8px;
+      --transition: 0.2s ease;
+    }
+
+    /* ============================================================
+       LIGHT MODE TOKENS
+    ============================================================ */
+    html[data-theme="light"] {
+      --bg-base:           #eef2fb;
+      --bg-surface:        rgba(255,255,255,0.75);
+      --bg-surface-hover:  rgba(255,255,255,0.95);
+      --border:            rgba(15,23,42,0.1);
+      --border-accent:     rgba(37,99,235,0.4);
+
+      --text-primary:   #0f172a;
+      --text-secondary: #334155;
+      --text-dim:       #94a3b8;
+
+      --shadow-card:    0 4px 20px rgba(15,23,42,0.08);
+    }
+
+    html[data-theme="light"] body::before {
+      background:
+        radial-gradient(ellipse 80% 50% at 15% 15%, rgba(79,158,255,0.09) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 85% 85%, rgba(168,85,247,0.07) 0%, transparent 60%);
+    }
+
+    /* Drive blocks — increase contrast on light background */
+    html[data-theme="light"] .drive-block.type-data    { background: rgba(37,99,235,0.1);  border-color: rgba(37,99,235,0.45);  color: #1e40af; }
+    html[data-theme="light"] .drive-block.type-mirror  { background: rgba(109,40,217,0.1); border-color: rgba(109,40,217,0.45); color: #5b21b6; }
+    html[data-theme="light"] .drive-block.type-parity1 { background: rgba(161,98,7,0.1);   border-color: rgba(161,98,7,0.45);   color: #92400e; }
+    html[data-theme="light"] .drive-block.type-parity2 { background: rgba(185,28,28,0.1);  border-color: rgba(185,28,28,0.45);  color: #991b1b; }
+
+    html[data-theme="light"] .drive-header {
+      background: rgba(0,0,0,0.03);
+      border-color: rgba(15,23,42,0.1);
+    }
+
+    html[data-theme="light"] .drive-num { color: #0f172a; }
+
+    html[data-theme="light"] .comparison-table tr.current-row td {
+      background: rgba(37,99,235,0.06);
+    }
+
+    html[data-theme="light"] .alert.warning {
+      background: rgba(180,83,9,0.08);
+      border-color: rgba(180,83,9,0.3);
+      color: #92400e;
+    }
+
+    html[data-theme="light"] .alert.danger {
+      background: rgba(185,28,28,0.08);
+      border-color: rgba(185,28,28,0.3);
+      color: #991b1b;
+    }
+
+    html[data-theme="light"] #error-banner {
+      background: rgba(185,28,28,0.07);
+      color: #991b1b;
+    }
+
+    html[data-theme="light"] .fail-mode-indicator {
+      background: rgba(185,28,28,0.07);
+      color: #991b1b;
+    }
+
+    html[data-theme="light"] .btn-export {
+      background: rgba(37,99,235,0.07);
+      border-color: rgba(37,99,235,0.35);
+      color: #1d4ed8;
+    }
+
+    html[data-theme="light"] .btn-export:hover {
+      background: rgba(37,99,235,0.14);
+    }
+
+    html[data-theme="light"] #theme-toggle {
+      background: rgba(0,0,0,0.05);
+      border-color: rgba(15,23,42,0.15);
+      color: var(--text-secondary);
+    }
+
+    html[data-theme="light"] .raid-btn {
+      background: rgba(255,255,255,0.6);
+    }
+
+    html[data-theme="light"] .raid-btn.active {
+      background: linear-gradient(135deg, rgba(37,99,235,0.15), rgba(109,40,217,0.15));
+      border-color: rgba(37,99,235,0.5);
+      color: #1d4ed8;
+    }
+
+    html[data-theme="light"] .preset-btn:hover {
+      background: rgba(109,40,217,0.07);
+    }
+
+    html[data-theme="light"] ::-webkit-scrollbar-thumb {
+      background: rgba(15,23,42,0.15);
+    }
+
+    /* ============================================================
+       THEME TRANSITION
+    ============================================================ */
+    body, .card, .drive-block, .drive-header, .raid-btn,
+    .btn-export, #theme-toggle, #error-banner, .alert,
+    .comparison-table td, .comparison-table th {
+      transition: background-color 0.25s ease, color 0.25s ease,
+                  border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    /* ============================================================
+       RESET & BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 15% 15%, rgba(79,158,255,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 85% 85%, rgba(168,85,247,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 50% 50%, rgba(79,158,255,0.03) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 28px 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ============================================================
+       HEADER
+    ============================================================ */
+    #site-header {
+      padding: 36px 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .header-left h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(20px, 3.5vw, 36px);
+      font-weight: 900;
+      background: var(--brand-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.06em;
+      line-height: 1.1;
+    }
+
+    .header-left p {
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin-top: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.03em;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+
+    /* ============================================================
+       HEADER BUTTONS
+    ============================================================ */
+    #theme-toggle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    #theme-toggle:hover {
+      background: var(--bg-surface-hover);
+      color: var(--text-primary);
+    }
+
+    .btn-export {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-accent);
+      background: rgba(79,158,255,0.07);
+      color: var(--color-data);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .btn-export:hover {
+      background: rgba(79,158,255,0.15);
+      box-shadow: 0 0 16px rgba(79,158,255,0.2);
+    }
+
+    /* ============================================================
+       CARD
+    ============================================================ */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-card);
+      padding: 22px;
+    }
+
+    /* ============================================================
+       INPUTS
+    ============================================================ */
+    #inputs { padding: 0 0 20px; }
+
+    .inputs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      align-items: start;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+    }
+
+    /* RAID BUTTONS */
+    .raid-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .raid-btn {
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+      letter-spacing: 0.04em;
+    }
+
+    .raid-btn:hover:not(:disabled):not(.active) {
+      border-color: rgba(79,158,255,0.35);
+      color: var(--text-primary);
+      background: var(--bg-surface-hover);
+    }
+
+    .raid-btn.active {
+      background: linear-gradient(135deg, rgba(79,158,255,0.18), rgba(168,85,247,0.18));
+      border-color: rgba(79,158,255,0.55);
+      color: var(--color-data);
+      box-shadow: 0 0 14px rgba(79,158,255,0.22);
+    }
+
+    .raid-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* SLIDERS */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .slider-row input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(
+        to right,
+        var(--color-data) 0%,
+        var(--color-data) var(--pct, 30%),
+        rgba(255,255,255,0.1) var(--pct, 30%),
+        rgba(255,255,255,0.1) 100%
+      );
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 2px rgba(79,158,255,0.3);
+      cursor: pointer;
+    }
+
+    .slider-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--color-data);
+      min-width: 64px;
+      text-align: right;
+    }
+
+
+    /* PRESETS */
+    .presets-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preset-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .preset-btn:hover {
+      border-color: rgba(168,85,247,0.45);
+      color: var(--color-mirror);
+      background: rgba(168,85,247,0.07);
+    }
+
+    /* CHECKBOXES */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+    }
+
+    .checkbox-row input[type=checkbox] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--color-data);
+      cursor: pointer;
+    }
+
+    .checkbox-row span {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* ============================================================
+       ERROR BANNER
+    ============================================================ */
+    #error-banner {
+      display: none;
+      background: rgba(239,68,68,0.09);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      color: #fca5a5;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    #error-banner.visible { display: block; }
+
+    /* ============================================================
+       FAIL MODE INDICATOR
+    ============================================================ */
+    .fail-mode-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      min-height: 24px;
+    }
+
+    .fail-mode-indicator {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 12px;
+      border-radius: 100px;
+      border: 1px solid rgba(239,68,68,0.3);
+      background: rgba(239,68,68,0.08);
+      color: #fca5a5;
+      display: none;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .fail-mode-indicator.visible { display: inline-flex; }
+
+    .fail-mode-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: blink 1s ease infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.15; }
+    }
+
+    /* ============================================================
+       SUMMARY CARDS
+    ============================================================ */
+    #summary-cards {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .summary-card {
+      text-align: center;
+      padding: 18px 12px;
+    }
+
+    .summary-card .card-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .summary-card .card-value {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(15px, 2vw, 22px);
+      font-weight: 700;
+      background: var(--brand-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    .summary-card .card-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ============================================================
+       SECTION CHROME
+    ============================================================ */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .section-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-secondary);
+    }
+
+    /* ============================================================
+       LEGEND
+    ============================================================ */
+    #diagram-legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       DRIVE DIAGRAM
+    ============================================================ */
+    #drive-diagram-wrapper { margin-bottom: 0; }
+
+    #drive-diagram {
+      display: flex;
+      gap: 10px;
+      transition: opacity 0.25s ease;
+      align-items: flex-start;
+    }
+
+    #drive-diagram.anim-exit { opacity: 0; }
+
+    /* RAID 10 pair grouping */
+    .drive-pair-group {
+      display: flex;
+      gap: 8px;
+      position: relative;
+      padding: 6px;
+    }
+
+    .drive-pair-group::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1px dashed rgba(168,85,247,0.22);
+      border-radius: var(--radius);
+      pointer-events: none;
+    }
+
+    .drive-pair-label {
+      position: absolute;
+      bottom: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: rgba(168,85,247,0.5);
+      white-space: nowrap;
+    }
+
+    /* DRIVE COLUMN */
+    .drive-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      opacity: 0;
+      animation: fadeSlideUp 0.38s ease forwards;
+      flex: 1 1 0;
+      min-width: 0;
+      max-width: 90px;
+      cursor: default;
+    }
+
+    .drive-column.failed {
+      opacity: 0.25 !important;
+      filter: grayscale(1) brightness(0.7);
+    }
+
+    .drive-column.fail-clickable { cursor: pointer; }
+
+    .drive-header {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      text-align: center;
+      color: var(--text-secondary);
+      padding: 6px 8px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      width: 100%;
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .drive-column.fail-clickable .drive-header:hover {
+      border-color: rgba(239,68,68,0.35);
+      color: #fca5a5;
+      background: rgba(239,68,68,0.06);
+    }
+
+    .drive-num {
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .drive-sz {
+      font-size: 9px;
+      color: var(--text-dim);
+    }
+
+    .drive-body {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      width: 100%;
+    }
+
+    /* DRIVE BLOCKS */
+    .drive-block {
+      height: 27px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 600;
+      transition: transform var(--transition), filter var(--transition);
+      position: relative;
+    }
+
+    .drive-block:hover {
+      transform: scaleY(1.08);
+      z-index: 2;
+      filter: brightness(1.25);
+    }
+
+    .drive-block.type-data {
+      background: rgba(79,158,255,0.18);
+      border: 1px solid rgba(79,158,255,0.38);
+      color: #93c5fd;
+    }
+
+    .drive-block.type-mirror {
+      background: rgba(168,85,247,0.18);
+      border: 1px solid rgba(168,85,247,0.38);
+      color: #d8b4fe;
+    }
+
+    .drive-block.type-parity1 {
+      background: rgba(245,158,11,0.18);
+      border: 1px solid rgba(245,158,11,0.38);
+      color: #fcd34d;
+    }
+
+    .drive-block.type-parity2 {
+      background: rgba(239,68,68,0.18);
+      border: 1px solid rgba(239,68,68,0.38);
+      color: #fca5a5;
+    }
+
+    /* ============================================================
+       PURE-CSS TOOLTIPS
+    ============================================================ */
+    [data-tooltip] { position: relative; }
+
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(8,12,24,0.96);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 100;
+    }
+
+    [data-tooltip]:hover::after { opacity: 1; }
+
+    /* ============================================================
+       CAPACITY MATH
+    ============================================================ */
+    #capacity-math { margin-bottom: 0; }
+
+    .math-formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 2;
+    }
+
+    .math-formula .hl  { color: var(--color-data); }
+    .math-formula .res { color: white; font-weight: 600; }
+
+    .math-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      line-height: 1.7;
+    }
+
+    /* ============================================================
+       PERFORMANCE
+    ============================================================ */
+    .perf-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+
+    .perf-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-secondary);
+      width: 46px;
+      flex-shrink: 0;
+    }
+
+    .perf-bar-track {
+      flex: 1;
+      height: 7px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .perf-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      width: 0;
+      transition: width 0.65s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .perf-bar-fill.read  { background: linear-gradient(90deg, #2563eb, #93c5fd); }
+    .perf-bar-fill.write { background: linear-gradient(90deg, #b45309, #fcd34d); }
+
+    .perf-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-primary);
+      min-width: 74px;
+      text-align: right;
+    }
+
+    .perf-qual {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      padding-left: 62px;
+      line-height: 1.5;
+    }
+
+    /* ============================================================
+       FAULT TOLERANCE
+    ============================================================ */
+    .fault-info {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.75;
+    }
+
+    .alert {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+
+    .alert.warning {
+      background: rgba(245,158,11,0.09);
+      border: 1px solid rgba(245,158,11,0.28);
+      color: #fcd34d;
+    }
+
+    .alert.danger {
+      background: rgba(239,68,68,0.09);
+      border: 1px solid rgba(239,68,68,0.28);
+      color: #fca5a5;
+    }
+
+    .alert-icon { font-size: 15px; margin-top: 1px; flex-shrink: 0; }
+
+    /* ============================================================
+       COMPARISON TABLE
+    ============================================================ */
+    #comparison { margin-bottom: 20px; overflow-x: auto; }
+
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .comparison-table th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .comparison-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.035);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+
+    .comparison-table tr.current-row td {
+      color: var(--text-primary);
+      background: rgba(79,158,255,0.05);
+      border-left: 3px solid var(--color-data);
+    }
+
+    .comparison-table tr.current-row td:not(:first-child) {
+      border-left: none;
+    }
+
+    .raid-badge {
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .table-unavail {
+      color: var(--text-dim);
+      font-style: italic;
+      font-size: 11px;
+    }
+
+    /* ============================================================
+       MAIN ROW (diagram + performance side by side)
+    ============================================================ */
+    .main-row {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+      align-items: stretch;
+    }
+
+    /* ============================================================
+       BOTTOM GRID (formula + fault tolerance)
+    ============================================================ */
+    .sections-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    /* ============================================================
+       FOOTER
+    ============================================================ */
+    footer {
+      text-align: center;
+      padding: 24px 0 8px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      border-top: 1px solid var(--border);
+      margin-top: 12px;
+    }
+
+    .footer-link {
+      color: var(--text-dim);
+      text-decoration: none;
+      opacity: 0.5;
+      transition: opacity 0.2s ease;
+    }
+
+    .footer-link:hover { opacity: 1; }
+
+    .footer-heart { transition: color 0.2s ease; }
+
+    .footer-link:hover .footer-heart { color: #ef4444; }
+
+    /* ============================================================
+       ANIMATIONS
+    ============================================================ */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+
+    @keyframes valuePulse {
+      0%   { filter: brightness(1);   }
+      40%  { filter: brightness(2.2); }
+      100% { filter: brightness(1);   }
+    }
+
+    .anim-pulse { animation: valuePulse 0.4s ease; }
+
+    /* ============================================================
+       SCROLLBAR
+    ============================================================ */
+    ::-webkit-scrollbar          { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track    { background: transparent; }
+    ::-webkit-scrollbar-thumb    { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+    /* ============================================================
+       RESPONSIVE
+    ============================================================ */
+    @media (max-width: 1100px) {
+      #summary-cards { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      #summary-cards     { grid-template-columns: repeat(2, 1fr); }
+      .main-row          { grid-template-columns: 1fr; }
+      .sections-grid     { grid-template-columns: 1fr; }
+      #site-header       { flex-direction: column; align-items: flex-start; }
+      .inputs-grid       { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 480px) {
+      #summary-cards { grid-template-columns: repeat(2, 1fr); }
+      .container     { padding: 0 16px 32px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+  <header id="site-header">
+    <div class="header-left">
+      <h1>RAID VISUALIZER</h1>
+      <p>// interactive storage architecture explorer &nbsp;·&nbsp; educational tool</p>
+    </div>
+    <div class="header-right">
+      <button id="theme-toggle" onclick="toggleTheme()">☾ Dark</button>
+      <button class="btn-export" onclick="exportPNG()">Export PNG</button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════ INPUTS ═══════════════════════════════ -->
+  <section id="inputs">
+    <div class="card">
+      <div class="inputs-grid">
+
+        <!-- RAID Level -->
+        <div class="input-group" style="grid-column: 1 / -1;">
+          <div class="input-label">RAID Level</div>
+          <div class="raid-buttons">
+            <button class="raid-btn" data-level="0"  onclick="setRaid(0)">RAID 0</button>
+            <button class="raid-btn" data-level="1"  onclick="setRaid(1)">RAID 1</button>
+            <button class="raid-btn active" data-level="5"  onclick="setRaid(5)">RAID 5</button>
+            <button class="raid-btn" data-level="6"  onclick="setRaid(6)">RAID 6</button>
+            <button class="raid-btn" data-level="10" onclick="setRaid(10)">RAID 10</button>
+          </div>
+        </div>
+
+        <!-- Drive Count -->
+        <div class="input-group">
+          <div class="input-label">Drive Count</div>
+          <div class="slider-row">
+            <input type="range" id="drive-count" min="2" max="12" value="4"
+                   oninput="onDriveCount(this)">
+            <span class="slider-value" id="drive-count-val">4 drives</span>
+          </div>
+        </div>
+
+        <!-- Drive Size -->
+        <div class="input-group" id="drive-size-group">
+          <div class="input-label">Drive Size</div>
+          <div class="slider-row">
+            <input type="range" id="drive-size" min="1" max="20" value="4"
+                   oninput="onDriveSize(this)">
+            <span class="slider-value" id="drive-size-val">4 TB</span>
+          </div>
+        </div>
+
+        <!-- Options -->
+        <div class="input-group">
+          <div class="input-label">Options</div>
+          <label class="checkbox-row">
+            <input type="checkbox" id="fail-mode" onchange="onFailMode(this)">
+            <span>Fail mode (click drives to fail)</span>
+          </label>
+        </div>
+
+        <!-- Presets -->
+        <div class="input-group">
+          <div class="input-label">Presets</div>
+          <div class="presets-row">
+            <button class="preset-btn" onclick="applyPreset('nas4')">NAS 4-bay</button>
+            <button class="preset-btn" onclick="applyPreset('media')">Home Media</button>
+            <button class="preset-btn" onclick="applyPreset('enterprise')">Enterprise 8</button>
+            <button class="preset-btn" onclick="applyPreset('speed')">Max Speed</button>
+            <button class="preset-btn" onclick="applyPreset('fault')">Max Fault</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ ERROR BANNER ═══════════════════════════ -->
+  <div id="error-banner"></div>
+
+  <!-- ═══════════════════════════ FAIL INDICATOR ════════════════════════ -->
+  <div class="fail-mode-bar">
+    <span class="fail-mode-indicator" id="fail-indicator">
+      <span class="fail-mode-dot"></span>
+      Fail Mode Active — click drives to toggle failure
+    </span>
+  </div>
+
+  <!-- ═══════════════════════════ SUMMARY CARDS ═════════════════════════ -->
+  <div id="summary-cards">
+    <div class="card summary-card">
+      <div class="card-label">Raw Capacity</div>
+      <div class="card-value" id="val-raw">—</div>
+      <div class="card-sub"  id="sub-raw"></div>
+    </div>
+    <div class="card summary-card">
+      <div class="card-label">Usable Space</div>
+      <div class="card-value" id="val-usable">—</div>
+      <div class="card-sub"  id="sub-usable"></div>
+    </div>
+    <div class="card summary-card">
+      <div class="card-label">Efficiency</div>
+      <div class="card-value" id="val-eff">—</div>
+      <div class="card-sub"  id="sub-eff"></div>
+    </div>
+    <div class="card summary-card">
+      <div class="card-label">Fault Tolerance</div>
+      <div class="card-value" id="val-fault">—</div>
+      <div class="card-sub"  id="sub-fault"></div>
+    </div>
+    <div class="card summary-card">
+      <div class="card-label">Read / Write</div>
+      <div class="card-value" id="val-rw">—</div>
+      <div class="card-sub"  id="sub-rw"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ DRIVE DIAGRAM + PERFORMANCE (side by side) ══════ -->
+  <div class="main-row">
+    <div class="card" id="drive-diagram-wrapper">
+      <div class="section-header">
+        <span class="section-title">Drive Layout</span>
+        <div id="diagram-legend"></div>
+      </div>
+      <div id="drive-diagram"></div>
+    </div>
+    <div class="card" id="performance"></div>
+  </div>
+
+  <!-- ═══════════════════ CAPACITY MATH + FAULT TOLERANCE ═════════════ -->
+  <div class="sections-grid">
+    <div class="card" id="capacity-math"></div>
+    <div class="card" id="fault-tolerance"></div>
+  </div>
+
+  <footer>
+    RAID VISUALIZER &nbsp;·&nbsp; Educational tool &nbsp;·&nbsp; Block layouts are conceptual representations
+    <div style="margin-top:10px">
+      <a href="https://github.com/nilicule/raidTool" target="_blank" rel="noopener" class="footer-link">
+        built with <span class="footer-heart">♥</span> · source on GitHub
+      </a>
+    </div>
+  </footer>
+
+</div><!-- /container -->
+
+<!-- ═══════════════════════════════ SCRIPT ═══════════════════════════════ -->
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────
+// UTILITY
+// ─────────────────────────────────────────────────────────────────
+// Safe modulo that always returns non-negative result
+function smod(a, n) { return ((a % n) + n) % n; }
+
+function fmtTB(val) {
+  if (val === 0) return '0 TB';
+  if (val >= 1000) return `${(val / 1000).toFixed(1)} PB`;
+  if (val % 1 === 0) return `${val} TB`;
+  return `${val.toFixed(1)} TB`;
+}
+
+function fmtMult(val) {
+  if (val === Math.floor(val)) return `${val}×`;
+  return `${val.toFixed(1)}×`;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────
+const state = {
+  driveCount:    4,
+  driveSize:     4,
+  raidLevel:     5,
+  failedDrives:  [],
+  failModeActive: false,
+};
+
+const STRIPE_COUNT = 8;
+
+// ─────────────────────────────────────────────────────────────────
+// RAID CONFIGURATION
+// ─────────────────────────────────────────────────────────────────
+const RAID_CONFIG = {
+
+  0: {
+    minDrives: 2, requiresEven: false, name: 'RAID 0',
+    usable:    (n, sz)  => n * Math.min(...sz),
+    fault:     ()       => 0,
+    readMult:  (n)      => n,
+    writeMult: (n)      => n,
+    blockLayout(d, n, sc) {
+      const out = [];
+      for (let s = 0; s < sc; s++)
+        out.push({ type: 'data', label: `D${s * n + d + 1}` });
+      return out;
+    },
+    simpleDesc: 'All drives work together as one. Maximum speed and space — but zero protection. Any single drive failure destroys all data.',
+    techDesc:   'Striping only. Data distributed round-robin across all N drives. No redundancy whatsoever.',
+    goodFor:    'Video editing scratch disks, temporary high-performance storage',
+    tradeoff:   'No fault tolerance of any kind',
+    readLabel:  'Excellent', writeLabel: 'Excellent',
+  },
+
+  1: {
+    minDrives: 2, requiresEven: false, name: 'RAID 1',
+    usable:    (n, sz)  => Math.min(...sz),
+    fault:     (n)      => n - 1,
+    readMult:  (n)      => n,
+    writeMult: ()       => 1,
+    blockLayout(d, n, sc) {
+      const out = [];
+      for (let s = 0; s < sc; s++)
+        out.push({ type: 'mirror', label: `D${s + 1}` });
+      return out;
+    },
+    simpleDesc: 'Every drive holds a complete copy of all your data. Very safe — but you only get one drive\'s worth of usable space.',
+    techDesc:   'Full mirroring. Identical writes to all N drives simultaneously. Reads distributed across all drives for N× read speed.',
+    goodFor:    'OS drives, critical databases, small high-importance datasets',
+    tradeoff:   'Only 1 drive-equivalent of usable space regardless of drive count',
+    readLabel:  'Excellent', writeLabel: 'Average',
+  },
+
+  5: {
+    minDrives: 3, requiresEven: false, name: 'RAID 5',
+    usable:    (n, sz)  => (n - 1) * Math.min(...sz),
+    fault:     ()       => 1,
+    readMult:  (n)      => n - 1,
+    writeMult: (n)      => Math.max(1, (n - 1) * 0.55),
+    blockLayout(d, n, sc) {
+      const out = [];
+      for (let s = 0; s < sc; s++) {
+        const par = smod(n - 1 - s, n);
+        if (d === par) {
+          out.push({ type: 'parity1', label: `P${s + 1}` });
+        } else {
+          // k = zero-based index of drive d among the data drives this stripe
+          const k = d - (d > par ? 1 : 0);
+          out.push({ type: 'data', label: `D${s * (n - 1) + k + 1}` });
+        }
+      }
+      return out;
+    },
+    simpleDesc: 'One drive\'s worth of recovery data, spread evenly across all drives. Lose any one drive and you\'re safe.',
+    techDesc:   'Distributed parity. Per stripe: P = XOR of all data blocks. Parity drive rotates across stripes.',
+    goodFor:    'NAS, file servers, general-purpose storage arrays',
+    tradeoff:   'Write penalty from parity calc; vulnerable during long rebuilds',
+    readLabel:  'Good', writeLabel: 'Moderate',
+  },
+
+  6: {
+    minDrives: 4, requiresEven: false, name: 'RAID 6',
+    usable:    (n, sz)  => (n - 2) * Math.min(...sz),
+    fault:     ()       => 2,
+    readMult:  (n)      => n - 2,
+    writeMult: (n)      => Math.max(1, (n - 2) * 0.38),
+    blockLayout(d, n, sc) {
+      const out = [];
+      for (let s = 0; s < sc; s++) {
+        const pD = smod(n - 1 - s, n);
+        const qD = smod(n - 2 - s, n);
+        if (d === pD) {
+          out.push({ type: 'parity1', label: `P${s + 1}` });
+        } else if (d === qD) {
+          out.push({ type: 'parity2', label: `Q${s + 1}` });
+        } else {
+          const dataDrives = [];
+          for (let dd = 0; dd < n; dd++)
+            if (dd !== pD && dd !== qD) dataDrives.push(dd);
+          const k = dataDrives.indexOf(d);
+          out.push({ type: 'data', label: `D${s * (n - 2) + k + 1}` });
+        }
+      }
+      return out;
+    },
+    simpleDesc: 'Two drives worth of recovery data. You can lose any two drives simultaneously and still recover everything.',
+    techDesc:   'Dual distributed parity. P = XOR, Q = Reed-Solomon GF(2⁸). Both distributed across all drives.',
+    goodFor:    'Enterprise storage, large arrays, high-availability systems',
+    tradeoff:   'Higher write overhead than RAID 5; minimum 4 drives',
+    readLabel:  'Good', writeLabel: 'Slow',
+  },
+
+  10: {
+    minDrives: 4, requiresEven: true, name: 'RAID 10',
+    usable:    (n, sz)  => (n / 2) * Math.min(...sz),
+    fault:     (n)      => Math.floor(n / 2),
+    readMult:  (n)      => n,
+    writeMult: (n)      => n / 2,
+    blockLayout(d, n, sc) {
+      const numPairs = Math.floor(n / 2);
+      const pairIdx  = Math.floor(d / 2);
+      const out = [];
+      for (let s = 0; s < sc; s++)
+        out.push({ type: 'mirror', label: `D${s * numPairs + pairIdx + 1}` });
+      return out;
+    },
+    simpleDesc: 'Drives are paired as mirrors, then striped across all pairs. Best of both worlds: speed + safety, at the cost of half your capacity.',
+    techDesc:   'RAID 1+0. N/2 mirror pairs, then striped across pairs. Can survive 1 failure per pair simultaneously.',
+    goodFor:    'High-performance databases, virtualization, transaction workloads',
+    tradeoff:   '50% capacity efficiency regardless of drive count',
+    readLabel:  'Excellent', writeLabel: 'Good',
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────
+// PRESETS
+// ─────────────────────────────────────────────────────────────────
+const PRESETS = {
+  nas4:       { driveCount: 4,  driveSize: 4,  raidLevel: 5  },
+  media:      { driveCount: 4,  driveSize: 8,  raidLevel: 5  },
+  enterprise: { driveCount: 8,  driveSize: 12, raidLevel: 6  },
+  speed:      { driveCount: 4,  driveSize: 2,  raidLevel: 0  },
+  fault:      { driveCount: 6,  driveSize: 8,  raidLevel: 10 },
+};
+
+// ─────────────────────────────────────────────────────────────────
+// VALIDATE
+// ─────────────────────────────────────────────────────────────────
+function validate(st) {
+  const cfg = RAID_CONFIG[st.raidLevel];
+  if (st.driveCount < cfg.minDrives) {
+    const need = cfg.minDrives - st.driveCount;
+    return `RAID ${st.raidLevel} requires at least ${cfg.minDrives} drives. Add ${need} more drive${need > 1 ? 's' : ''}.`;
+  }
+  if (cfg.requiresEven && st.driveCount % 2 !== 0)
+    return `RAID 10 requires an even number of drives. Try ${st.driveCount + 1} drives.`;
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CALCULATE
+// ─────────────────────────────────────────────────────────────────
+function calculate(st) {
+  const cfg   = RAID_CONFIG[st.raidLevel];
+  const sizes = Array(st.driveCount).fill(st.driveSize);
+
+  const raw       = sizes.reduce((a, b) => a + b, 0);
+  const usable    = cfg.usable(st.driveCount, sizes);
+  const efficiency = raw > 0 ? (usable / raw) * 100 : 0;
+  const fault     = cfg.fault(st.driveCount);
+  const readMult  = cfg.readMult(st.driveCount);
+  const writeMult = cfg.writeMult(st.driveCount);
+  const failedCount = st.failedDrives.length;
+  const isDegraded  = failedCount > 0 && failedCount <= fault;
+  const isFailed    = failedCount > fault;
+
+  return { raw, usable, efficiency, fault, readMult, writeMult,
+           isDegraded, isFailed, failedCount, sizes };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ANIMATION HELPERS
+// ─────────────────────────────────────────────────────────────────
+function triggerPulse(el) {
+  if (!el) return;
+  el.classList.remove('anim-pulse');
+  void el.offsetWidth;
+  el.classList.add('anim-pulse');
+  el.addEventListener('animationend', () => el.classList.remove('anim-pulse'), { once: true });
+}
+
+function setCardValue(id, val, subId, sub) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.textContent !== val) { el.textContent = val; triggerPulse(el); }
+  const subEl = document.getElementById(subId);
+  if (subEl) subEl.textContent = sub || '';
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER: SUMMARY CARDS
+// ─────────────────────────────────────────────────────────────────
+function renderSummaryCards(st, calc) {
+  const sizeNote = `${fmtTB(st.driveSize)} each`;
+  setCardValue('val-raw',   fmtTB(calc.raw),   'sub-raw',   `${sizeNote} × ${st.driveCount} drives`);
+  setCardValue('val-usable', fmtTB(calc.usable), 'sub-usable', 'addressable storage');
+  setCardValue('val-eff',   `${calc.efficiency.toFixed(0)}%`, 'sub-eff', 'space efficiency');
+  const fTxt = calc.fault === 0 ? 'None'
+             : calc.fault === 1 ? '1 drive'
+             : `${calc.fault} drives`;
+  setCardValue('val-fault', fTxt, 'sub-fault', 'simultaneous failures');
+  setCardValue('val-rw',
+    `${fmtMult(calc.readMult)} / ${fmtMult(calc.writeMult)}`,
+    'sub-rw', 'read / write speed');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER: LEGEND
+// ─────────────────────────────────────────────────────────────────
+function renderLegend(st) {
+  const rl = st.raidLevel;
+  const items = [];
+  if (rl === 0 || rl === 5 || rl === 6)
+    items.push(`<div class="legend-item"><div class="legend-swatch" style="background:rgba(79,158,255,0.45)"></div><span>Data</span></div>`);
+  if (rl === 1 || rl === 10)
+    items.push(`<div class="legend-item"><div class="legend-swatch" style="background:rgba(168,85,247,0.45)"></div><span>Mirror</span></div>`);
+  if (rl === 5 || rl === 6)
+    items.push(`<div class="legend-item"><div class="legend-swatch" style="background:rgba(245,158,11,0.45)"></div><span>Parity P</span></div>`);
+  if (rl === 6)
+    items.push(`<div class="legend-item"><div class="legend-swatch" style="background:rgba(239,68,68,0.45)"></div><span>Parity Q</span></div>`);
+  document.getElementById('diagram-legend').innerHTML = items.join('');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER: SINGLE DRIVE COLUMN
+// ─────────────────────────────────────────────────────────────────
+function renderDriveColumn(d, st, calc, cfg) {
+  const failed   = st.failedDrives.includes(d);
+  const clickCls = st.failModeActive ? ' fail-clickable' : '';
+  const failCls  = failed ? ' failed' : '';
+  const delay    = d * 40;
+  const size     = st.driveSize;
+  const tooltip  = st.failModeActive ? `data-tooltip="${failed ? 'Click to restore drive' : 'Click to fail drive'}"` : '';
+
+  const blocks = cfg.blockLayout(d, st.driveCount, STRIPE_COUNT);
+  const blocksHtml = blocks.map(b =>
+    `<div class="drive-block type-${b.type}">${b.label}</div>`
+  ).join('');
+
+  return `
+    <div class="drive-column${failCls}${clickCls}"
+         style="animation-delay:${delay}ms"
+         onclick="toggleDriveFail(${d})">
+      <div class="drive-header" ${tooltip}>
+        <span class="drive-num">D${d + 1}</span>
+        <span class="drive-sz">${fmtTB(size)}</span>
+      </div>
+      <div class="drive-body">${blocksHtml}</div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER: DRIVE DIAGRAM
+// ─────────────────────────────────────────────────────────────────
+function renderDiagram(st, calc) {
+  const cfg = RAID_CONFIG[st.raidLevel];
+  let html = '';
+
+  if (st.raidLevel === 10) {
+    const numPairs = Math.floor(st.driveCount / 2);
+    for (let p = 0; p < numPairs; p++) {
+      html += `<div class="drive-pair-group">`;
+      for (let i = 0; i < 2; i++)
+        html += renderDriveColumn(p * 2 + i, st, calc, cfg);
+      html += `<span class="drive-pair-label">Mirror Pair ${p + 1}</span></div>`;
+    }
+    // odd drive shouldn't happen (validation catches it) but just in case
+    if (st.driveCount % 2 !== 0)
+      html += renderDriveColumn(st.driveCount - 1, st, calc, cfg);
+  } else {
+    for (let d = 0; d < st.driveCount; d++)
+      html += renderDriveColumn(d, st, calc, cfg);
+  }
+
+  return html;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER: CAPACITY MATH
+// ─────────────────────────────────────────────────────────────────
+function renderCapacityMath(st, calc) {
+  const n    = st.driveCount;
+  const min  = Math.min(...calc.sizes);
+  const cfg  = RAID_CONFIG[st.raidLevel];
+
+  const descs = {
+    0:  `All ${n} drives contribute their full capacity. You get every byte you paid for — but any drive failure destroys everything.`,
+    1:  `Only the smallest drive's capacity counts — every drive stores the same data. ${n > 2
+          ? `With ${n} mirrors, you pay ${n}× for the same space but gain ${n - 1} backup copies.`
+          : 'One drive works, the other is your backup.'}`,
+    5:  `One drive-equivalent goes to parity (distributed evenly). You get ${n - 1} out of ${n} drives' worth of usable space with single-drive protection.`,
+    6:  `Two drives' worth of space goes to dual parity. You get ${n - 2} out of ${n} drives' capacity, but can survive any two simultaneous failures.`,
+    10: `Drives pair as mirrors, then those pairs are striped. You always use exactly half your raw capacity — ${n / 2} pairs × ${fmtTB(min)} = ${fmtTB(calc.usable)}.`,
+  };
+  const inner = `<div class="math-desc">${descs[st.raidLevel]}</div>`;
+
+  document.getElementById('capacity-math').innerHTML =
+    `<div class="section-title" style="margin-bottom:12px">Capacity Formula</div>${inner}`;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER: PERFORMANCE
+// ─────────────────────────────────────────────────────────────────
+function renderPerformance(st, calc) {
+  const cfg     = RAID_CONFIG[st.raidLevel];
+  const MAX_MULT = 12;
+  const rPct   = Math.min(100, (calc.readMult  / MAX_MULT) * 100);
+  const wPct   = Math.min(100, (calc.writeMult / MAX_MULT) * 100);
+
+  const desc = `${cfg.readLabel} reads, ${cfg.writeLabel} writes — ${cfg.goodFor.toLowerCase()}`;
+
+  document.getElementById('performance').innerHTML = `
+    <div class="section-title" style="margin-bottom:18px">Performance Profile</div>
+    <div class="perf-row">
+      <div class="perf-label">Read</div>
+      <div class="perf-bar-track"><div class="perf-bar-fill read"  id="pbar-r" style="width:0%"></div></div>
+      <div class="perf-val">${fmtMult(calc.readMult)} speed</div>
+    </div>
+    <div class="perf-row">
+      <div class="perf-label">Write</div>
+      <div class="perf-bar-track"><div class="perf-bar-fill write" id="pbar-w" style="width:0%"></div></div>
+      <div class="perf-val">${fmtMult(calc.writeMult)} speed</div>
+    </div>
+    <div class="perf-qual">${desc}</div>`;
+
+  // Animate bars after paint
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const r = document.getElementById('pbar-r');
+    const w = document.getElementById('pbar-w');
+    if (r) r.style.width = rPct + '%';
+    if (w) w.style.width = wPct + '%';
+  }));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER: FAULT TOLERANCE
+// ─────────────────────────────────────────────────────────────────
+function renderFaultDetail(st, calc) {
+  const n    = st.driveCount;
+  const cfg  = RAID_CONFIG[st.raidLevel];
+
+  const descs = {
+    0:  `Zero protection. If any drive dies, ALL data is gone immediately. Never use RAID 0 for anything you care about.`,
+    1:  `Every drive is a full backup. You can lose ${calc.fault === 1 ? 'any one drive' : `up to ${calc.fault} drives`} and keep running without losing a byte.`,
+    5:  `Lose any one drive and you're safe — the array runs in degraded mode. Lose two simultaneously and all data is lost. Replace failed drives promptly.`,
+    6:  `Can survive losing any two drives at once. Great insurance for large arrays where a second failure during rebuild is a real risk.`,
+    10: `You can lose one drive from each mirror pair. With ${Math.floor(n / 2)} pairs that's potentially ${Math.floor(n / 2)} drives — but only spread across pairs. Losing both drives of one pair destroys everything.`,
+  };
+  const desc = descs[st.raidLevel];
+
+  let pairInfo = '';
+  if (st.raidLevel === 10 && n >= 4) {
+    pairInfo = `<div class="fault-info" style="margin-top:10px;font-size:11px;color:var(--text-dim)">
+      Pairs: ${Array.from({ length: Math.floor(n / 2) }, (_, i) => `D${i*2+1}↔D${i*2+2}`).join(' · ')}
+    </div>`;
+  }
+
+  let alerts = '';
+  if (calc.isDegraded)
+    alerts += `<div class="alert warning"><span class="alert-icon">⚠</span>
+      <div><strong>Array Degraded</strong> — ${calc.failedCount} drive${calc.failedCount > 1 ? 's' : ''} failed.
+      Running without full redundancy. Replace immediately.</div></div>`;
+  if (calc.isFailed)
+    alerts += `<div class="alert danger"><span class="alert-icon">✕</span>
+      <div><strong>Array Failed</strong> — ${calc.failedCount} drive${calc.failedCount > 1 ? 's' : ''} failed,
+      exceeding fault tolerance of ${calc.fault}. Data is unrecoverable without backup.</div></div>`;
+
+  document.getElementById('fault-tolerance').innerHTML =
+    `<div class="section-title" style="margin-bottom:12px">Fault Tolerance</div>
+     <div class="fault-info">${desc}</div>${pairInfo}${alerts}`;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RENDER: COMPARISON TABLE
+// ─────────────────────────────────────────────────────────────────
+function renderComparisonTable(st, calc) {
+  const levels = [0, 1, 5, 6, 10];
+
+  const rows = levels.map(lvl => {
+    const cfg      = RAID_CONFIG[lvl];
+    const isCur    = lvl === st.raidLevel;
+    const canUse   = st.driveCount >= cfg.minDrives &&
+                     (!cfg.requiresEven || st.driveCount % 2 === 0);
+
+    let usableTD, effTD;
+    if (!canUse) {
+      const note = st.driveCount < cfg.minDrives
+        ? `Needs ${cfg.minDrives}+`
+        : `Needs even count`;
+      usableTD = `<td class="table-unavail">${note}</td>`;
+      effTD    = `<td class="table-unavail">—</td>`;
+    } else {
+      const sz  = Array(st.driveCount).fill(st.driveSize);
+      const u   = cfg.usable(st.driveCount, sz);
+      const raw = sz.reduce((a, b) => a + b, 0);
+      const eff = raw > 0 ? ((u / raw) * 100).toFixed(0) : 0;
+      usableTD = `<td>${fmtTB(u)}</td>`;
+      effTD    = `<td>${eff}%</td>`;
+    }
+
+    const fv  = cfg.fault(st.driveCount);
+    const fTD = fv === 0
+      ? `<td style="color:var(--color-parity2)">None</td>`
+      : `<td>${fv} drive${fv > 1 ? 's' : ''}</td>`;
+
+    return `<tr class="${isCur ? 'current-row' : ''}">
+      <td><span class="raid-badge">${cfg.name}</span></td>
+      ${usableTD}${effTD}${fTD}
+      <td>${cfg.readLabel}</td>
+      <td>${cfg.writeLabel}</td>
+      <td>${cfg.minDrives}+</td>
+      <td style="font-size:11px;color:var(--text-dim);max-width:180px">${cfg.goodFor.split(',')[0]}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('comparison-inner').innerHTML = `
+    <table class="comparison-table">
+      <thead><tr>
+        <th>Level</th><th>Usable</th><th>Efficiency</th><th>Fault Tolerance</th>
+        <th>Read</th><th>Write</th><th>Min Drives</th><th>Best For</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// UPDATE RAID BUTTONS
+// ─────────────────────────────────────────────────────────────────
+function updateRaidButtons() {
+  document.querySelectorAll('.raid-btn').forEach(btn => {
+    const lvl    = parseInt(btn.dataset.level);
+    const cfg    = RAID_CONFIG[lvl];
+    const canUse = state.driveCount >= cfg.minDrives &&
+                   (!cfg.requiresEven || state.driveCount % 2 === 0);
+    btn.disabled = !canUse;
+    btn.classList.toggle('active', lvl === state.raidLevel);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SLIDER PROGRESS FILL
+// ─────────────────────────────────────────────────────────────────
+function updateSliderStyles() {
+  const cs = document.getElementById('drive-count');
+  const ss = document.getElementById('drive-size');
+  cs.style.setProperty('--pct', ((state.driveCount - 2)  / (12 - 2))  * 100 + '%');
+  ss.style.setProperty('--pct', ((state.driveSize   - 1) / (20 - 1)) * 100 + '%');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MASTER UPDATE
+// ─────────────────────────────────────────────────────────────────
+let diagBusy = false;
+
+function update() {
+  const err     = validate(state);
+  const errEl   = document.getElementById('error-banner');
+
+  if (err) {
+    errEl.textContent = `⚠ ${err}`;
+    errEl.classList.add('visible');
+    updateRaidButtons();
+    return;
+  }
+  errEl.classList.remove('visible');
+  errEl.textContent = '';
+
+  const calc = calculate(state);
+
+  renderSummaryCards(state, calc);
+  renderCapacityMath(state, calc);
+  renderPerformance(state, calc);
+  renderFaultDetail(state, calc);
+  renderLegend(state);
+  updateRaidButtons();
+  updateSliderStyles();
+
+  // Diagram cross-fade
+  const diag = document.getElementById('drive-diagram');
+  if (diagBusy) {
+    diag.innerHTML = renderDiagram(state, calc);
+    return;
+  }
+  diagBusy = true;
+  diag.classList.add('anim-exit');
+  setTimeout(() => {
+    diag.innerHTML = renderDiagram(state, calc);
+    diag.classList.remove('anim-exit');
+    diagBusy = false;
+  }, 250);
+}
+
+
+// ─────────────────────────────────────────────────────────────────
+// SYNC UI → STATE  (used by presets)
+// ─────────────────────────────────────────────────────────────────
+function syncUI() {
+  document.getElementById('drive-count').value = state.driveCount;
+  document.getElementById('drive-count-val').textContent = `${state.driveCount} drives`;
+  document.getElementById('drive-size').value = state.driveSize;
+  document.getElementById('drive-size-val').textContent = `${state.driveSize} TB`;
+  updateRaidButtons();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// EVENT HANDLERS
+// ─────────────────────────────────────────────────────────────────
+function setRaid(level) {
+  state.raidLevel = level;
+  state.failedDrives = [];
+  update();
+}
+
+
+function onDriveCount(el) {
+  state.driveCount = parseInt(el.value);
+  document.getElementById('drive-count-val').textContent = `${state.driveCount} drives`;
+  state.failedDrives = [];
+  update();
+}
+
+function onDriveSize(el) {
+  state.driveSize = parseInt(el.value);
+  document.getElementById('drive-size-val').textContent = `${state.driveSize} TB`;
+  update();
+}
+
+function onFailMode(el) {
+  state.failModeActive = el.checked;
+  state.failedDrives = [];
+  document.getElementById('fail-indicator').classList.toggle('visible', state.failModeActive);
+  update();
+}
+
+function toggleDriveFail(d) {
+  if (!state.failModeActive) return;
+  const idx = state.failedDrives.indexOf(d);
+  if (idx >= 0) state.failedDrives.splice(idx, 1);
+  else          state.failedDrives.push(d);
+  update();
+}
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  state.raidLevel     = p.raidLevel;
+  state.driveCount    = p.driveCount;
+  state.driveSize     = p.driveSize;
+  state.failedDrives  = [];
+  state.failModeActive = false;
+
+  document.getElementById('fail-mode').checked = false;
+  document.getElementById('fail-indicator').classList.remove('visible');
+
+  syncUI();
+  update();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// EXPORT PNG
+// ─────────────────────────────────────────────────────────────────
+function exportPNG() {
+  const cfg = RAID_CONFIG[state.raidLevel];
+  const calc = calculate(state);
+
+  const BLOCK_W  = 80;
+  const BLOCK_H  = 26;
+  const GAP      = 3;
+  const COL_GAP  = 10;
+  const HDR_H    = 44;
+  const PAD      = 24;
+  const TITLE_H  = 48;
+
+  const colH   = HDR_H + STRIPE_COUNT * (BLOCK_H + GAP) - GAP;
+  const totalW = PAD * 2 + state.driveCount * BLOCK_W + (state.driveCount - 1) * COL_GAP;
+  const totalH = PAD * 2 + TITLE_H + colH;
+
+  const DPR = 2;
+  const canvas = document.createElement('canvas');
+  canvas.width  = totalW * DPR;
+  canvas.height = totalH * DPR;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  // Background
+  ctx.fillStyle = '#0a0e1a';
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // Title
+  ctx.font = 'bold 13px monospace';
+  ctx.fillStyle = '#4f9eff';
+  ctx.textAlign = 'center';
+  ctx.fillText(
+    `${cfg.name} · ${state.driveCount} Drives · ${fmtTB(calc.usable)} Usable · ${calc.efficiency.toFixed(0)}% Efficiency`,
+    totalW / 2, PAD + 18
+  );
+
+  const BC = {
+    data:    { fill: 'rgba(79,158,255,0.25)',  stroke: 'rgba(79,158,255,0.6)',  text: '#93c5fd' },
+    mirror:  { fill: 'rgba(168,85,247,0.25)', stroke: 'rgba(168,85,247,0.6)', text: '#d8b4fe' },
+    parity1: { fill: 'rgba(245,158,11,0.25)', stroke: 'rgba(245,158,11,0.6)', text: '#fcd34d' },
+    parity2: { fill: 'rgba(239,68,68,0.25)',  stroke: 'rgba(239,68,68,0.6)',  text: '#fca5a5' },
+  };
+
+  for (let d = 0; d < state.driveCount; d++) {
+    const x = PAD + d * (BLOCK_W + COL_GAP);
+    const y = PAD + TITLE_H;
+
+    if (state.failedDrives.includes(d)) ctx.globalAlpha = 0.25;
+
+    // Drive header
+    ctx.fillStyle   = 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth   = 1;
+    rr(ctx, x, y, BLOCK_W, HDR_H - 6, 6);
+
+    ctx.font      = 'bold 11px monospace';
+    ctx.fillStyle = '#e2e8f0';
+    ctx.textAlign = 'center';
+    ctx.fillText(`D${d + 1}`, x + BLOCK_W / 2, y + 14);
+    ctx.font      = '10px monospace';
+    ctx.fillStyle = '#94a3b8';
+    const sz = state.driveSize;
+    ctx.fillText(fmtTB(sz), x + BLOCK_W / 2, y + 30);
+
+    // Blocks
+    const blocks = cfg.blockLayout(d, state.driveCount, STRIPE_COUNT);
+    blocks.forEach((blk, bi) => {
+      const by  = y + HDR_H + bi * (BLOCK_H + GAP);
+      const col = BC[blk.type] || BC.data;
+      ctx.fillStyle   = col.fill;
+      ctx.strokeStyle = col.stroke;
+      ctx.lineWidth   = 1;
+      rr(ctx, x, by, BLOCK_W, BLOCK_H, 4);
+      ctx.font      = '600 9px monospace';
+      ctx.fillStyle = col.text;
+      ctx.textAlign = 'center';
+      ctx.fillText(blk.label, x + BLOCK_W / 2, by + BLOCK_H / 2 + 3);
+    });
+
+    ctx.globalAlpha = 1;
+  }
+
+  const link = document.createElement('a');
+  link.download = `raid${state.raidLevel}-${state.driveCount}drives.png`;
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+// Rounded-rect helper for canvas
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// THEME
+// ─────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const next = isLight ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  document.getElementById('theme-toggle').textContent = next === 'light' ? '☀ Light' : '☾ Dark';
+  localStorage.setItem('raid-theme', next);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────────────────────────
+(function () {
+  const saved = localStorage.getItem('raid-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('theme-toggle').textContent = saved === 'light' ? '☀ Light' : '☾ Dark';
+})();
+
+update();
+</script>
+</body>
+</html>
